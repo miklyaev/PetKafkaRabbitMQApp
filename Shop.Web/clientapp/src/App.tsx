@@ -96,7 +96,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-orange-500/30">
       <Header connected={connected} />
       <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[400px,minmax(0,1fr)]">
         <OrderForm products={products} onSubmit={handleCreate} />

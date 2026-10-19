@@ -61,15 +61,15 @@ export function OrderForm({ products, onSubmit }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex h-fit flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="flex h-fit flex-col gap-5 rounded-none border border-zinc-800 bg-zinc-900 p-8"
     >
-      <div>
-        <h2 className="text-base font-semibold">Новый заказ</h2>
-        <p className="mt-0.5 text-sm text-slate-500">Команда — RabbitMQ, событие — Kafka.</p>
+      <div className="border-b border-zinc-800 pb-4">
+        <h2 className="text-xl font-bold tracking-tight text-zinc-50 uppercase">Новый заказ</h2>
+        <p className="mt-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">Команда — RabbitMQ, событие — Kafka.</p>
       </div>
 
-      <label className="block">
-        <span className="mb-1 block text-sm font-medium text-slate-700">Имя клиента</span>
+      <label className="block mt-2">
+        <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-zinc-400">Имя клиента</span>
         <input
           type="text"
           value={customerName}
@@ -77,39 +77,39 @@ export function OrderForm({ products, onSubmit }: Props) {
           placeholder="Иван Петров"
           maxLength={100}
           autoComplete="off"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+          className="w-full rounded-none border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-50 outline-none transition placeholder:text-zinc-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
         />
       </label>
 
-      <ul className="flex flex-col divide-y divide-slate-100">
+      <ul className="flex flex-col divide-y divide-zinc-800/50 mt-2">
         {products.map(product => {
           const qty = quantities[product.name] ?? 0;
           return (
-            <li key={product.name} className="flex items-center gap-3 py-2.5">
-              <span className="text-2xl" aria-hidden="true">
+            <li key={product.name} className="flex items-center gap-4 py-3">
+              <span className="flex h-10 w-10 items-center justify-center bg-zinc-950 border border-zinc-800 text-lg grayscale transition-all group-hover:grayscale-0" aria-hidden="true">
                 {product.icon}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{product.name}</p>
-                <p className="text-xs text-slate-500">{formatRub(product.price)}</p>
+                <p className="truncate text-sm font-semibold tracking-tight text-zinc-200">{product.name}</p>
+                <p className="text-xs font-medium text-zinc-500">{formatRub(product.price)}</p>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setQuantity(product.name, qty - 1)}
                   disabled={qty === 0}
                   aria-label={`Убрать «${product.name}»`}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-lg leading-none text-slate-600 transition hover:bg-slate-50 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                  className="flex h-8 w-8 items-center justify-center rounded-none border border-zinc-700 bg-zinc-950 text-lg leading-none text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500"
                 >
                   −
                 </button>
-                <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
+                <span className="w-8 text-center text-sm font-bold tabular-nums text-zinc-100">{qty}</span>
                 <button
                   type="button"
                   onClick={() => setQuantity(product.name, qty + 1)}
                   disabled={qty === MAX_QTY}
                   aria-label={`Добавить «${product.name}»`}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-lg leading-none text-slate-600 transition hover:bg-slate-50 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                  className="flex h-8 w-8 items-center justify-center rounded-none border border-zinc-700 bg-zinc-950 text-lg leading-none text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500"
                 >
                   +
                 </button>
@@ -119,13 +119,13 @@ export function OrderForm({ products, onSubmit }: Props) {
         })}
       </ul>
 
-      <div className="flex items-center justify-between border-t border-slate-100 pt-4 text-sm">
-        <span className="text-slate-500">Итого</span>
-        <span className="text-lg font-bold tabular-nums">{formatRub(total)}</span>
+      <div className="flex items-center justify-between border-t border-zinc-800 pt-6 mt-2">
+        <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Итого</span>
+        <span className="text-xl font-bold tabular-nums tracking-tight text-orange-500">{formatRub(total)}</span>
       </div>
 
       {error && (
-        <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <p role="alert" className="rounded-none border border-rose-900/50 bg-rose-950/30 px-4 py-3 text-sm text-rose-400">
           {error}
         </p>
       )}
@@ -133,7 +133,7 @@ export function OrderForm({ products, onSubmit }: Props) {
       <button
         type="submit"
         disabled={submitting || !hasItems}
-        className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:from-indigo-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        className="mt-2 inline-flex w-full items-center justify-center gap-3 rounded-none bg-orange-600 px-5 py-3.5 text-sm font-bold uppercase tracking-wider text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
       >
         {submitting && <Spinner />}
         {submitting ? 'Оформляем…' : 'Оформить заказ'}
