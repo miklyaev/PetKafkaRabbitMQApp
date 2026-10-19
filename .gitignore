@@ -1,0 +1,27 @@
+# Visual Studio
+.vs/
+bin/
+obj/
+*.user
+*.suo
+
+# Node / Vite
+node_modules/
+*.local
+
+# Сборка React-клиента (wwwroot) и БД сервисов
+Shop.Web/wwwroot/app.js
+Shop.Web/wwwroot/app.css
+Shop.Web/wwwroot/assets/
+Shop.Web/wwwroot/index.html
+
+# Accidental TypeScript compiler output; client sources are .ts/.tsx
+Shop.Web/clientapp/vite.config.js
+Shop.Web/clientapp/src/**/*.js
+*.db
+*.db-shm
+*.db-wal
+
+# Логи и прочее
+*.log
+.DS_Store
