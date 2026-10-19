@@ -25,3 +25,8 @@ Shop.Web/clientapp/src/**/*.js
 # Логи и прочее
 *.log
 .DS_Store
+
+# IDE и AI инструменты
+.kodik/
+.claude/
+.vscodecsdt/
