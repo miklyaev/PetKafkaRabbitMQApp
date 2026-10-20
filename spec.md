@@ -1,6 +1,6 @@
 # Спецификация: MiniShop — пет-проект Kafka + RabbitMQ
 
-**Репозиторий:** `PetKafkaRabbitMQApp` · **Версия:** 1.0 · **Дата:** 2026-10-13
+**Репозиторий:** `PetKafkaRabbitMQApp` · **Версия:** 1.1 · **Дата:** 2026-10-20
 
 ## 1. Назначение
 
@@ -11,12 +11,15 @@
 Обучающие цели:
 
 - решение Visual Studio 2026: **2 микросервиса** (`Shop.Orders`, `Shop.Notifications`) +
-  веб-приложение **ASP.NET Core MVC + React** (`Shop.Web`) + общие контракты (`Shop.Contracts`);
+  веб-приложение **ASP.NET Core MVC + React** (`Shop.Web`) + общие контракты (`Shop.Contracts`)
+  и отдельная библиотека observability (`Shop.Observability`);
 - MassTransit: команды и request/response через RabbitMQ, событийный поток через Kafka (rider);
 - весь код работы с I/O — асинхронный (`async/await`): контроллеры, консьюмеры, продюсеры, EF Core;
 - современный UI: React 19 + TypeScript + Vite + Tailwind CSS 4, обновления в реальном времени (SignalR).
 
-Решение сознательно компактное: 5 проектов, минимум зависимостей, SQLite без внешней БД.
+Решение сознательно компактное: 6 проектов, SQLite без внешней БД. Страницы наблюдения брокеров — локальная
+Development-функция: read-only снимки, чтение Kafka по запросу и best-effort журнал событий; это не средство
+управления брокерами и не гарантия доставки или обработки.
 
 ## 2. Стек
 
@@ -25,7 +28,9 @@
 | IDE / среда | Visual Studio 2026, .NET 10 (C# 14), Windows 10/11, Docker Desktop |
 | Веб | ASP.NET Core MVC + SignalR; React 19 + TypeScript + Vite; Tailwind CSS 4 |
 | Микросервисы | ASP.NET Core Worker Host (консольные хосты) |
-| Шина | MassTransit **v8** (Apache-2.0): `MassTransit.RabbitMQ` + `MassTransit.Kafka` |
+| Шина | MassTransit **8.5.11** (Apache-2.0): `MassTransit.RabbitMQ` + `MassTransit.Kafka` |
+| Наблюдаемость | `Shop.Observability`: MassTransit send/publish/consume/receive observers, санитайзер payload и bounded sink; `Confluent.Kafka` 2.15.1 только для read-only снимков и чтения Kafka |
+| Тесты | xUnit 2.9 + Moq (`Shop.Tests`); Vitest + React Testing Library (`clientapp`) |
 | Брокеры | RabbitMQ 3 (`:5672`, UI `:15672`), Apache Kafka 3 KRaft (`:9092`), Kafka UI (`:8080`) — все в Docker |
 | БД | SQLite + EF Core 10, по одному файлу БД на сервис |
 
@@ -70,10 +75,26 @@ React (браузер)
 
 | Проект | Тип | Ответственность |
 |---|---|---|
-| `Shop.Web` | ASP.NET Core (MVC) | UI: MVC-вью, хостинг SPA, REST API, SignalR-хаб; MassTransit: request-клиенты и консьюмер `NotificationSent` |
-| `Shop.Orders` | Worker-хост | Домен заказов: консьюмеры `CreateOrder`/`ChangeOrderStatus`/`GetOrders`, SQLite, продюсер событий в Kafka |
-| `Shop.Notifications` | Worker-хост | Консьюмер Kafka-топика `orders-events`, генерация уведомлений, публикация `NotificationSent` в RabbitMQ |
+| `Shop.Web` | ASP.NET Core (MVC) | UI: MVC-вью, хостинг SPA, REST API, SignalR-хабы; MassTransit: request-клиенты и консьюмер `NotificationSent`; локальный журнал диагностики и read-only мониторинг брокеров |
+| `Shop.Orders` | Worker-хост | Домен заказов: консьюмеры `CreateOrder`/`ChangeOrderStatus`/`GetOrders`, SQLite, продюсер событий в Kafka; диагностические observers |
+| `Shop.Notifications` | Worker-хост | Консьюмер Kafka-топика `orders-events`, генерация уведомлений, публикация `NotificationSent` в RabbitMQ; диагностические observers |
 | `Shop.Contracts` | ClassLib | Контракты сообщений (records), статический каталог товаров, классы опций конфигурации брокеров |
+| `Shop.Observability` | ClassLib | Общие MassTransit-обозреватели, маскирование и ограничение диагностических событий, bounded sink и HTTP-экспортёр для worker-процессов |
+| `Shop.Tests` | xUnit | Unit-тесты контроллеров, журнала/снимков мониторинга и санитайзера |
+
+### Диагностический контур (не входит в бизнес-поток)
+
+```
+Shop.Orders / Shop.Notifications ──(HTTP POST /internal/diagnostics/events)──► Shop.Web
+     observers + sanitizer + bounded buffer                         DiagnosticJournal (memory)
+                                                                           │
+                                                                  SignalR /hubs/diagnostics
+                                                                           ▼
+                                                         /brokers/rabbitmq, /kafka, /flow
+```
+
+Наблюдение опционально, включается только в Development и не должно влиять на обработку
+сообщений: ошибки диагностики изолированы, а потери диагностических событий допустимы.
 
 ### Ключевое решение: роли брокеров
 
@@ -82,7 +103,7 @@ React (браузер)
   error-очереди (DLQ). Быстрая доставка небольшого числа сообщений конкретному получателю.
 - **Kafka — «событийный поток».** Append-only топик `orders-events`, сообщение `OrderEvent` —
   факт изменения заказа. Ключ партиции = `OrderId` (упорядоченность в рамках заказа),
-  консьюмер-группа `notifications`, лог хранения/ретридов — на стороне брокера.
+  консьюмер-группа `notifications`; offsets и позиция чтения принадлежат Kafka-группе.
 
 Один сервис может работать с обоими брокерами: RabbitMQ — основной транспорт
 (`x.UsingRabbitMq(...)`), Kafka — райдер поверх того же контейнера (`x.AddRider(r => r.UsingKafka(...))`).
@@ -211,17 +232,64 @@ React опрашивает `GET /api/orders` (и сразу после кажд�
 | `kafka` | `apache/kafka:3.9.0` (KRaft, single-node) | 9092 | брокер; dual-listeners: `PLAINTEXT` (внутри сети, `kafka:29092`) и `EXTERNAL` (`localhost:9092`) |
 | `kafka-ui` | `provectuslabs/kafka-ui` | 8080 | веб-UI для топиков/групп/сообщений |
 
-Автосоздание топиков включено (`KAFKA_AUTO_CREATE_TOPICS_ENABLE=true`), плюс MassTransit
-конфигурирует `CreateIfMissing` (1 партиция по умолчанию для `orders-events`, replication factor 1).
+Автосоздание топиков включено (`KAFKA_AUTO_CREATE_TOPICS_ENABLE=true`; `KAFKA_NUM_PARTITIONS=3`),
+а `Shop.Notifications` конфигурирует `CreateIfMissing` для `orders-events` с 3 партициями и
+replication factor 1. Это создаёт топик, если его нет; уже существующий топик с другим
+числом партиций не перестраивается.
 
 ### 6.3. Порты приложений
 
 | Приложение | URL |
 |---|---|
 | `Shop.Web` (Kestrel) | `http://localhost:5080`, `https://localhost:7080` |
-| Vite dev-сервер (hot reload) | `http://localhost:5173` |
+| Vite dev-сервер (hot reload) | `http://localhost:5173`; в Development разрешён Origin также `http://127.0.0.1:5173` |
 | RabbitMQ Management | `http://localhost:15672` |
 | Kafka UI | `http://localhost:8080` |
+
+### 6.4. Мониторинг брокеров (`BrokerMonitoring`)
+
+Секция читается всеми тремя процессами. В поставляемых `appsettings.json` флаг `Enabled` выключен,
+а `appsettings.Development.json` каждого сервиса включает его; при отсутствии Development-файла
+мониторинг выключен. Работает только при `Development` **и** `BrokerMonitoring:Enabled=true`.
+
+**`Shop.Web`** (сборщик, страницы и локальный журнал):
+
+```json
+"BrokerMonitoring": {
+  "Enabled": true,
+  "RabbitMqManagementUrl": "http://localhost:15672",
+  "KafkaUiUrl": "http://localhost:8080",
+  "AllowedOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"]
+}
+```
+
+**`Shop.Orders` / `Shop.Notifications`** (экспортёры событий):
+
+```json
+"BrokerMonitoring": {
+  "Enabled": true,
+  "CollectorUrl": "http://localhost:5080/internal/diagnostics/events"
+}
+```
+
+`CollectorUrl` можно не задавать — используется указанное значение по умолчанию. Ключ
+`IngestionKey` не задан ни в одном `appsettings.json`: он передаётся через серверную конфигурацию
+или переменные окружения и должен совпадать во всех трёх процессах.
+
+| Параметр | По умолчанию | Назначение |
+|---|---|---|
+| `BrokerMonitoring:Enabled` | `false` | Единственный opt-in-переключатель диагностики (только Development) |
+| `BrokerMonitoring:CollectorUrl` | `http://localhost:5080/internal/diagnostics/events` | HTTP(S)-приёмник диагностики для воркеров |
+| `BrokerMonitoring:IngestionKey` | — | Общий ключ приёма (`X-Diagnostics-Key`); без него ingestion возвращает 401, воркеры не отправляют события |
+| `BrokerMonitoring:RabbitMqManagementUrl` | `http://localhost:15672` | Loopback URL Management API для снимка RabbitMQ |
+| `BrokerMonitoring:KafkaUiUrl` | `http://localhost:8080` | Loopback ссылка на Kafka UI в интерфейсе |
+| `BrokerMonitoring:RabbitMqManagementUsername` / `Password` | — (fallback на `MessageBus:RabbitMq:Username` / `Password`) | Серверная учётка Management API, если она отличается от AMQP |
+| `BrokerMonitoring:AllowedOrigins` | `[]` | Дополнительные loopback-origins для браузерных запросов; same-origin принимается автоматически |
+
+Все значения переопределяются стандартной конфигурацией .NET, например
+`BrokerMonitoring__IngestionKey`, `BrokerMonitoring__CollectorUrl`, `BrokerMonitoring__Enabled=false`.
+Ключ не хранится в репозитории и не попадает в UI; в документации используется только заглушка,
+а не реальный секрет.
 
 ## 7. База данных
 
@@ -246,41 +314,44 @@ React опрашивает `GET /api/orders` (и сразу после кажд�
   MVC-вью ссылался на фиксированные пути); открытие `http://localhost:5080` — MVC-вью
   `Home/Index` монтирует React в `#root`.
 
-### 8.2. Макет
+### 8.2. Экраны и навигация
 
-- **Шапка (sticky):** логотип «MiniShop», подпись «Kafka × RabbitMQ», справа — пилюля
-  статуса SignalR (зелёная «на связи» / красная «нет связи»).
-- **Основная сетка** (`lg:grid-cols-[400px,1fr]`):
-  - карточка «Новый заказ»: имя клиента, список товаров (иконка, название, цена, степпер
-    количества −/+), итоговая сумма, кнопка «Оформить заказ» (градиент);
-  - карточка «Заказы»: таблица (№, клиент, позиции, сумма, статус, действия) с кнопками
-    «Завершить»/«Отменить» для активных заказов; пустое состояние «Заказов пока нет».
-- **Тосты:** правый нижний угол, слайд-анимация, авто-скрытие 6 с, цветная полоса по типу
-  (создан/завершён/отменён/ошибка), закрытие вручную.
-- **Обратная связь:** spinner на кнопках при запросе, disabled-состояния, живой пересчёт
-  суммы, поллинг списка каждые 15 с + мгновенное обновление по SignalR.
+Общий header содержит навигацию: «Заказы» (`/`), «RabbitMQ», «Kafka», «Путь сообщения».
+Главная — форма создания заказа и таблица заказов; список обновляется опросом раз в 15 секунд
+и после SignalR-уведомления.
+
+- `/brokers/rabbitmq` — очереди, exchanges, bindings, consumers; счётчики сообщений и rates
+  (при отсутствии метрик показывается «—»).
+- `/brokers/kafka` — partitions, low/high/committed offsets и lag; отдельная форма читает
+  до 50 записей выбранной partition с указанного offset.
+- `/brokers/flow` — статическая схема этапов (не индикатор успешности этапов) и живой журнал.
+  Все страницы мониторинга содержат журнал с фильтрами по сервису, операции, фазе,
+  типу сообщения и orderId.
+
+Прямая загрузка `/brokers/*` обслуживается MVC-вью, которая монтирует ту же React-SPA;
+маршрутизацию выполняет React Router.
 
 ### 8.3. Дизайн-система
 
 | Токен | Значение | Использование |
 |---|---|---|
-| Фон страницы | `slate-100` (#F1F5F9) | `body` |
-| Карточки | `white`, `rounded-xl`, `border border-slate-200`, `shadow-sm` | панели |
-| Текст | `slate-900` основной / `slate-500` вторичный | везде |
-| Акцент | `indigo-600 → violet-600` (градиент) | primary-кнопки, логотип, активные элементы |
-| Успех | `emerald-600` | статус `Completed`, уведомление об успехе |
-| Опасность | `rose-600` | статус `Cancelled`, ошибки |
-| Ожидание | `indigo` | статус `Accepted` |
-| Шрифт | системный стек: `ui-sans-serif, Segoe UI, …` | современный нативный рендер на Windows |
-| Радиусы/тени | `rounded-lg` для контролов, `rounded-xl` для карточек, мягкие тени | — |
+| Фон страницы | `zinc-950` (#09090B) | `body` |
+| Панели | `zinc-900/40`, `border-zinc-800` | карточки и таблицы |
+| Текст | `zinc-50` основной / `zinc-400` вторичный | везде |
+| Акцент | `orange-500` | активная навигация, primary-кнопки, фокус |
+| Успех | `emerald-400` | `Completed`, успешные уведомления |
+| Опасность | `rose-400/500` | `Cancelled`, ошибки |
+| Шрифт | системный стек: `ui-sans-serif, Segoe UI, …` | нативный рендер на Windows |
+| Радиусы/тени | `rounded-none` у карточек/кнопок, без декоративных теней | строгий Swiss Style / dark minimal |
 
-Статус — пилюля с точкой: `Accepted` (indigo-100/indigo-700), `Completed` (emerald),
-`Cancelled` (rose). Все интерактивы: `transition-colors`, `focus-visible:ring-2 ring-indigo-500`.
+Статус — бейдж с точкой; активная навигация и фокус — `outline-orange-400`. Мелкие служебные
+элементы (таблицы мониторинга, ссылки на RabbitMQ Management и Kafka UI) выдержаны в том же
+тёмном стиле.
 
 ### 8.4. Доступность
 
 Семантические теги (`header`, `main`, `table`/`thead`/`tbody`), `aria-live="polite"` для стека
-тостов, `aria-label` на кнопках-иконках, видимый focus-ring, управление формой с клавиатуры.
+тостов, `aria-label` на кнопках, видимый focus-ring, управление формами и таблицами с клавиатуры.
 
 ## 9. REST API `Shop.Web`
 
@@ -294,11 +365,14 @@ React опрашивает `GET /api/orders` (и сразу после кажд�
 
 ## 10. SignalR
 
-- Хаб: `NotificationHub`, путь `/hubs/notifications`.
-- Метод сервер→клиент: `NotificationReceived`, payload (camelCase):
-  `{ orderId, customerName, status, text, occurredAt }` — `status` строкой ("Accepted" и т.д.).
-- Клиент: `HubConnection` с `withAutomaticReconnect`, статус выводится в шапке; при событии —
-  тост + refetch списка заказов.
+- Бизнес-хаб `NotificationHub`, путь `/hubs/notifications`; метод сервер→клиент
+  `NotificationReceived`, payload (camelCase): `{ orderId, customerName, status, text, occurredAt }`;
+  `status` сериализуется строкой.
+- Отдельный хаб `DiagnosticsHub`, путь `/hubs/diagnostics` (только при включённом мониторинге),
+  шлёт `DiagnosticsChanged`. Клиент с автоматическим reconnect использует его как сигнал
+  обновить журнал, а polling каждые 5 секунд — как резервный механизм.
+- Header показывает состояние только подключения бизнес-хаба уведомлений, а не здоровье брокеров.
+  При бизнес-событии UI показывает toast и обновляет список заказов.
 
 ## 11. Надёжность и семантика доставки
 
@@ -318,51 +392,190 @@ React опрашивает `GET /api/orders` (и сразу после кажд�
 4. `guest/guest` RabbitMQ (работает только с localhost — приемлемо для локальной разработки).
 5. Single-instance сервисов, нет health-checks/OpenTelemetry.
 6. Каталог товаров — статический класс в контрактах (нет отдельного каталога-сервиса).
+7. Диагностический журнал — in-memory (2000 событий / 30 минут) без персистенции: после рестарта
+   Web события теряются, при переполнении появляются отметки о пропуске и потере.
+8. Доступ к мониторингу — Development + loopback (+ общий `IngestionKey` для приёма от воркеров),
+   без отдельной аутентификации; в Production и при выключенном флаге endpoints отвечают 404.
+9. Просмотр сырых Kafka-сообщений может содержать `CustomerName` и другие персональные данные —
+   только для локального обучения, не для production.
+10. Мониторинг наблюдательный, а не гарантия доставки: снимки могут быть устаревшими, lag не
+    доказывает обработку, потеря диагностических событий не влияет на бизнес-поток.
 
-## 13. Запуск (Windows 10/11, PowerShell)
+## 13. Мониторинг брокеров и живой журнал (read-only)
+
+Опциональный диагностический контур: состояние RabbitMQ/Kafka и путь сообщений. Он не меняет
+бизнес-поток, топологию и offsets консьюмеров и ничего не гарантирует: снимки могут быть
+устаревшими, часть диагностических событий может теряться.
+
+### 13.1. Условия работы и защита
+
+- Работает только при `Development` **и** `BrokerMonitoring:Enabled=true`; иначе observers не
+  регистрируются, а `/brokers/*`, `/api/diagnostics/*`, `/hubs/diagnostics` и
+  `/internal/diagnostics/events` отвечают **404**. Прямой запрос отключённого `/brokers/*` —
+  обычный 404 без SPA; notice «Мониторинг выключен» показывается только при клиентском переходе
+  внутри SPA (страница получает 404 от `/api/diagnostics/config`).
+- Запросы мониторинга допускаются только с loopback: фактический remote IP — `127.0.0.1`/`::1`,
+  Host — `localhost` или loopback-IP; `Origin`, если есть, должен быть same-origin либо входить
+  в `BrokerMonitoring:AllowedOrigins`; запросы к ingestion с заголовком `Origin` отклоняются.
+  Ответы получают `Cache-Control: no-store` и `X-Content-Type-Options: nosniff`.
+- Приём от воркеров: `POST /internal/diagnostics/events` с `X-Diagnostics-Key`; ключ сравнивается
+  с `BrokerMonitoring:IngestionKey` fixed-time сравнением SHA-256 до чтения тела. Без ключа
+  приём отвечает 401; воркеры без ключа не отправляют события и пишут warning в лог. Ключ
+  задаётся только через конфигурацию/окружение и не хранится в репозитории или UI.
+
+### 13.2. Сбор событий (`Shop.Observability`)
+
+- Обозреватели MassTransit 8.5.11: `ISendObserver`, `IPublishObserver`, `IConsumeObserver`,
+  `IReceiveObserver`; операции `send|publish|receive|consume|produce`, фазы
+  `started|completed|faulted`, длительность, `MessageId`/`RequestId`/`CorrelationId`/
+  `ConversationId`, `OrderId`, partition/offset Kafka, санитизированный адрес.
+- Kafka-продюсер наблюдается через `KafkaSendContext` (операция `produce`), отдельного wrapper'а
+  нет. `receive` — транспортный уровень, `consume` — уровень консьюмера; `receive completed`
+  не означает закоммиченный offset.
+- Payload — best-effort JSON ≤ 8192 байт. Поля `CustomerName`, `Text`, `Reason`, `Message`,
+  `StackTrace`, `ExceptionMessage` маскируются как `[REDACTED]`; слишком большой payload
+  не передаётся (`payloadTruncated=true`). Заголовки — только allowlist технических полей
+  (`MT-MessageId`, `MT-RequestId`, `MT-CorrelationId`, `MT-ConversationId`, `traceparent`);
+  из адреса удаляются credentials/query; ошибка — только тип исключения, без текста и стека.
+- Sink воркеров — bounded in-memory очередь (2048), запись неблокирующая: при переполнении
+  отбрасывается новое событие и растёт счётчик потерь. Экспортёр отправляет батчи ≤100 событий /
+  ≤256 КиБ на `CollectorUrl`, таймаут 3 с, без редиректов и без повторов; неудачный батч
+  считается потерянным. В `Shop.Web` sink заменён на локальный журнал, Web не экспортирует
+  события по HTTP.
+
+### 13.3. Живой журнал `Shop.Web`
+
+- `DiagnosticJournal` — потокобезопасный in-memory буфер: **2000 событий или 30 минут** (что
+  наступит раньше), монотонный `sequence`, дедупликация по `EventId`, валидация полей и лимитов.
+- Чтение: `GET /api/diagnostics/events?after=<cursor>&broker=rabbitmq|kafka&orderId=<GUID>`;
+  ответ `{ events:[{sequence,event}], nextCursor, oldestCursor, gap, droppedEvents }`.
+  `gap=true` означает, что часть событий вытеснена (или курсор новее сервера);
+  `droppedEvents` — накопленные потери от воркеров/выключенного экспорта.
+- Ingestion: тело ≤1 МиБ, ≤100 событий, `DroppedEvents` — кумулятивный счётчик источника;
+  `Service:InstanceId` должен быть согласован внутри батча.
+- UI получает `DiagnosticsChanged` из `/hubs/diagnostics` (коалесценция ~500 мс) и догружает
+  журнал по курсору; без хаба — опрос каждые 5 с. В браузере хранится не более 2000 событий;
+  доступны пауза ленты, фильтры (сервис/операция/фаза/тип) и фильтр по `orderId`.
+  Пауза останавливает только запросы ленты в клиенте, а не брокеры.
+- Журнал — best-effort наблюдение MassTransit callbacks, а не полный и не гарантированно точный
+  wire capture; потеря или дубли событий диагностики не влияют на бизнес-поток.
+
+### 13.4. Снимок RabbitMQ (read-only)
+
+- Фоновый опрос каждые 3 с (таймаут запроса 2 с, опроса — 8 с); UI обновляет снимок каждые 10 с.
+- Используются только `GET /api/queues|exchanges|bindings|consumers/{vhost}` (vhost URL-encoded,
+  ответ ≤2 МиБ и ≤10 000 элементов). Peek/consume не выполняется: вызов
+  `queues/{vhost}/{queue}/get` не используется, поэтому снимок не удаляет и не блокирует сообщения.
+- Учётка Management API: `BrokerMonitoring:RabbitMqManagementUsername/Password`, иначе fallback
+  на `MessageBus:RabbitMq:Username/Password`.
+- Показатели очередей: messages, ready, unacknowledged, consumers, publish/deliver/ack rates.
+  Rate берётся из `message_stats.*_details.rate`; если метрик нет — `null`, в UI «—».
+- RabbitMQ не хранит доставленные сообщения: после ack сообщение удаляется, «подтверждённых»
+  сообщений для просмотра нет. Страница показывает метрики и журнал приложения, а не тела очередей.
+- При ошибке/таймауте снимок помечается `available=false`, сохраняются последние данные
+  (`lastSuccessAt`) и текст ошибки; UI предупреждает об устаревании.
+
+### 13.5. Снимок Kafka
+
+- Метаданные — `AdminClient.GetMetadata` (auto-create topics выключен, топик должен существовать;
+  >128 партиций отклоняется). Для `MessageBus:Kafka:GroupId` (по умолчанию `notifications`)
+  читаются committed offsets, low/high — через `QueryWatermarkOffsets`. Lag = high − committed,
+  при отсутствии committed — `null`.
+- Снимок не подписывается на топик и не входит в consumer group, поэтому не вызывает ребалансировку
+  и не меняет offsets. Таймауты: 1 с на отдельный Kafka-запрос, ограниченный цикл чтения
+  watermarks ~3 с после metadata+committed; общий бюджет фонового опроса — 8 с.
+- Lag — запаздывание, а не потеря: commit может быть отложенным, поэтому lag временно растёт и не
+  означает, что сообщения не будут обработаны. Порядок существует только внутри partition.
+
+### 13.6. Чтение сообщений Kafka (read-only)
+
+- `GET /api/diagnostics/kafka/messages?partition=0&offset=0&limit=50`, `limit` 1–50, partition —
+  только из последнего успешного снимка.
+- Каждое чтение создаёт отдельного консьюмера с уникальным `GroupId`, делает ручной
+  `Assign(partition, offset)` и **никогда** не вызывает `Subscribe`, `Commit`, `StoreOffset`
+  или `Close` (только `Dispose`): membership группы, её committed offsets и другие консьюмеры
+  не затрагиваются. Ограничения: 2 с, 200 просканированных записей, 256 КиБ, key ≤1024 Б,
+  value ≤8192 Б, ≤32 заголовков из allowlist; при превышении — `truncated=true`.
+- Ответ: `available`, `error`, `topic`, `partition`, `lowOffset`, `highOffset`, `nextOffset`,
+  `messages[]`, `truncated`. `nextOffset` — позиция после последней прочитанной записи.
+- Значения выводятся как получены: **сырые Kafka-сообщения могут содержать `CustomerName` и другие
+  персональные данные**. Просмотр предназначен только для локального обучения, не для production.
+
+### 13.7. HTTP API диагностики `Shop.Web`
+
+| Метод | Путь | Назначение | Примечания |
+|---|---|---|---|
+| GET | `/api/diagnostics/config` | конфигурация для страниц | `enabled`, `rabbitMqManagementUrl`, `kafkaUiUrl`; только loopback URL, иначе `null` |
+| GET | `/api/diagnostics/rabbitmq/snapshot` | снимок RabbitMQ | метаданные, не тела сообщений |
+| GET | `/api/diagnostics/kafka/snapshot` | снимок Kafka | partitions/offsets/lag |
+| GET | `/api/diagnostics/kafka/messages` | чтение записей | ручной Assign, без commit |
+| GET | `/api/diagnostics/events` | журнал | `after`, `broker`, `orderId` |
+| POST | `/internal/diagnostics/events` | приём от воркеров | `X-Diagnostics-Key`, ≤1 МиБ, ≤100 событий |
+
+### 13.8. Страницы
+
+- `/brokers/rabbitmq` — очереди/exchanges/bindings/consumers и журнал RabbitMQ;
+- `/brokers/kafka` — partitions/offsets/lag, чтение сообщений по offset и журнал Kafka;
+- `/brokers/flow` — статическая схема пути сообщения (не индикация успеха) и общий журнал.
+  Шаги схемы: Shop.Web: запрос → RabbitMQ: команда/ответ → Shop.Orders: заказ → Kafka: событие
+  статуса → Shop.Notifications → RabbitMQ: NotificationSent → Shop.Web: обработка уведомления →
+  SignalR: браузер.
+- Индикатор SignalR в header относится только к каналу уведомлений, а не к доступности брокеров;
+  доступность каждого брокера показывается отдельно на его странице.
+
+## 14. Запуск (Windows 10/11, PowerShell)
 
 ```powershell
 # 1. Инфраструктура (Docker Desktop должен быть запущен)
 docker compose up -d
 
-# 2. Клиент React (один раз)
-cd Shop.Web\clientapp
-npm install
-npm run build          # сборка в wwwroot; либо npm run dev для hot reload на :5173
-# Из корня репозитория: npm --prefix Shop.Web/clientapp run build
+# 2. Клиент React (из корня репозитория)
+npm --prefix Shop.Web/clientapp install
+npm --prefix Shop.Web/clientapp run build  # app.js/app.css в Shop.Web/wwwroot
+# hot reload вместо сборки: npm --prefix Shop.Web/clientapp run dev (Vite :5173)
 
-# 3. Приложения (Visual Studio 2026)
-# Открыть PetKafkaRabbitMQApp.slnx (формат решений VS 2026) → в свойствах решения
-# «Multiple startup projects» → Shop.Web, Shop.Orders, Shop.Notifications → F5.
-# Альтернатива в трёх терминалах:
-#   dotnet run --project Shop.Orders
-#   dotnet run --project Shop.Notifications
-#   dotnet run --project Shop.Web
-
-# 4. Открыть http://localhost:5080 (или :5173 в dev-режиме Vite)
+# 3. В каждом из трёх терминалов задайте ОДИН И ТОТ ЖЕ локальный ключ
+#    (пример-заглушка; подставьте свою случайную строку, не коммитьте её).
+$env:BrokerMonitoring__IngestionKey='<одинаковый случайный локальный ключ>'
+# Терминал 1:
+dotnet run --project Shop.Orders
+# Терминал 2:
+dotnet run --project Shop.Notifications
+# Терминал 3:
+dotnet run --project Shop.Web
 ```
 
-Проверка: создать заказ → в шапке зелёный индикатор SignalR → через секунды появляется тост
-«Заказ … создан» (путь Web → RabbitMQ → Orders → Kafka → Notifications → RabbitMQ → Web).
+`dotnet run` наследует Development из launch profiles: Web — `ASPNETCORE_ENVIRONMENT`,
+воркеры — `DOTNET_ENVIRONMENT`; вместе с `appsettings.Development.json` это включает
+`BrokerMonitoring:Enabled=true`. Ключ — произвольная локальная строка, одинаковая во всех трёх
+процессах; реальные секреты сюда не помещайте. Открыть `http://localhost:5080` (готовый UI)
+или `http://localhost:5173` (Vite dev-сервер).
 
-## 14. Структура решения
+Без `BrokerMonitoring__IngestionKey` Web сохраняет локальный журнал и снимки, а воркеры
+выключают HTTP delivery с warning в логе: в журнале будут только события самого Web.
+
+Поток заказа описан в §4; индикатор в шапке означает подключение SignalR уведомлений и не
+подтверждает доступность обоих брокеров. Страницы мониторинга — read-only диагностика,
+а не проверка end-to-end гарантий.
+
+## 15. Структура решения
 
 ```
 PetKafkaRabbitMQApp.slnx
-├── docker-compose.yml / spec.md / dev_notes.md
-├── Shop.Contracts/                Catalog.cs, Orders.cs, MessagingOptions.cs
-├── Shop.Orders/                   Program.cs, appsettings.json,
-│                                  Data/ (OrdersDbContext, Order), Consumers/ (Create, ChangeStatus, GetOrders)
-├── Shop.Notifications/            Program.cs, appsettings.json,
-│                                  Data/ (NotificationsDbContext, NotificationRecord), Consumers/OrderEventConsumer
+├── docker-compose.yml / README.md / spec.md / dev_notes.md
+├── Shop.Contracts/                контракты сообщений и конфигурационные типы
+├── Shop.Observability/            MassTransit observers, sanitizer, bounded sink, HTTP exporter
+├── Shop.Orders/                   Worker, SQLite orders.db, Rabbit consumers, Kafka producer
+├── Shop.Notifications/            Worker, SQLite notifications.db, Kafka consumer, Rabbit publish
+├── Shop.Tests/                    xUnit-тесты backend и диагностического контура
 └── Shop.Web/
-    ├── Program.cs, appsettings.json, Controllers/, Hubs/, Consumers/, Views/
-    ├── wwwroot/                   артефакты сборки React (app.js, app.css)
-    └── clientapp/                 package.json, vite.config.ts, tsconfig.json,
-                                   index.html, src/ (main, App, api, signalr, components/)
+    ├── Controllers/, Diagnostics/, Hubs/, Consumers/, Views/
+    ├── wwwroot/                   app.js/app.css — артефакты сборки React
+    └── clientapp/                 React 19, TypeScript, Vite, Tailwind 4, Vitest,
+                                   src/ (main, App, api, signalr, components/, diagnostics/)
 ```
 
-## 15. Идеи развития
+## 16. Идеи развития
 
 Транзакционный outbox · сага «заказ → оплата → доставка» (MassTransit Saga) · вторая
 консьюмер-группа Kafka для аудита · OpenTelemetry + Jaeger · xUnit-тесты консьюмеров ·

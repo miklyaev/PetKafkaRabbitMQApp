@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Shop.Contracts\Shop.Contracts.csproj" />
+    <ProjectReference Include="..\Shop.Observability\Shop.Observability.csproj" />
   </ItemGroup>
 
 </Project>

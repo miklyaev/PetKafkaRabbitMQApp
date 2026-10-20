@@ -17,7 +17,7 @@ public class OrdersControllerTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("special characters!@#$%^&*()")]
+    [InlineData("\t\r\n")]
     public async Task Create_ReturnsBadRequest_WhenCustomerNameIsBlank(string? customerName)
     {
         var controller = CreateController();
@@ -30,8 +30,10 @@ public class OrdersControllerTests
             It.IsAny<CreateOrder>(), It.IsAny<CancellationToken>(), It.IsAny<RequestTimeout>()), Times.Never);
     }
 
-    [Fact]
-    public async Task Create_ReturnsAcceptedOrder_AndSendsTrimmedRequest()
+    [Theory]
+    [InlineData("  Алексей  ", "Алексей")]
+    [InlineData("special characters!@#$%^&*()", "special characters!@#$%^&*()")]
+    public async Task Create_ReturnsAcceptedOrder_AndSendsTrimmedRequest(string customerName, string expectedCustomerName)
     {
         var accepted = new CreateOrderAccepted(Guid.NewGuid(), OrderStatus.Accepted, 123.45m);
         var response = new Response<CreateOrderAccepted, CreateOrderRejected>(
@@ -48,7 +50,7 @@ public class OrdersControllerTests
             new("SSD 1 ТБ", 1),
         };
 
-        var result = await controller.Create(new CreateOrderRequest("  Алексей  ", items), CancellationToken.None);
+        var result = await controller.Create(new CreateOrderRequest(customerName, items), CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Equal(200, ok.StatusCode);
@@ -58,7 +60,7 @@ public class OrdersControllerTests
         createOrder.Verify(client => client.GetResponse<CreateOrderAccepted, CreateOrderRejected>(
             It.Is<CreateOrder>(command =>
                 command.OrderId != Guid.Empty &&
-                command.CustomerName == "Алексей" &&
+                command.CustomerName == expectedCustomerName &&
                 command.Items.SequenceEqual(new[]
                 {
                     new OrderItem("Кофе в зёрнах, 1 кг", 2),

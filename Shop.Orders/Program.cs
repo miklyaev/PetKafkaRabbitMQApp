@@ -35,11 +35,13 @@ using Microsoft.Extensions.Hosting;
 using Shop.Contracts;
 using Shop.Orders.Consumers;
 using Shop.Orders.Data;
+using Shop.Observability;
 
 // Host.CreateApplicationBuilder — «лёгкий» хост без веб-сервера (в отличие от
 // WebApplication.CreateBuilder в Shop.Web). Даёт DI, конфигурацию и логирование,
 // которых Worker-сервису достаточно.
 var builder = Host.CreateApplicationBuilder(args);
+var diagnosticsEnabled = builder.Services.AddBrokerDiagnostics(builder.Configuration, builder.Environment, "Shop.Orders");
 
 // ── Конфигурация брокеров ────────────────────────────────────────────────────
 // Оба подключения читаются из appsettings.json (секция MessageBus) и биндятся
@@ -71,6 +73,9 @@ builder.Services.AddDbContext<OrdersDbContext>(o =>
 // поверх той же шины»: тот же DI-контейнер, тот же жизненный цикл запуска/останова.
 builder.Services.AddMassTransit(x =>
 {
+    if (diagnosticsEnabled)
+        x.AddBrokerDiagnosticObservers();
+
     // Все очереди/обменники будут назваться в kebab-case: create-order,
     // change-order-status, get-orders. Имена фиксированы и предсказуемы —
     // удобно сверяться с RabbitMQ Management UI (http://localhost:15672).

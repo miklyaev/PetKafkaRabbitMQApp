@@ -23,8 +23,11 @@ using MassTransit;
 using Shop.Contracts;
 using Shop.Web.Consumers;
 using Shop.Web.Hubs;
+using Shop.Web.Diagnostics;
+using Shop.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
+var diagnosticsEnabled = builder.Services.AddWebBrokerMonitoring(builder.Configuration, builder.Environment);
 
 // ── Конфигурация брокера ─────────────────────────────────────────────────────
 // Bind секции MessageBus:RabbitMq на строго типизированные опции.
@@ -61,6 +64,7 @@ builder.Services
 //      (Orders → Kafka → Notifications → RabbitMQ → здесь) → SignalR → браузер.
 builder.Services.AddMassTransit(x =>
 {
+    if (diagnosticsEnabled) x.AddBrokerDiagnosticObservers();
     // Очереди/обменники получат имена в kebab-case: create-order, get-orders,
     // notification-sent. Предсказуемая схема топологии — как в спецификации.
     x.SetKebabCaseEndpointNameFormatter();
@@ -110,6 +114,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 // app.js / app.css и другие статические артефакты сборки React (clientapp).
+app.UseBrokerMonitoringGuard(diagnosticsEnabled);
 app.UseStaticFiles();
 app.UseRouting();
 
@@ -122,5 +127,6 @@ app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Inde
 // SignalR-хаб: клиент (clientapp/src/signalr.ts) подключается сюда,
 // получая пуш «NotificationReceived» из NotificationSentConsumer.
 app.MapHub<NotificationHub>("/hubs/notifications");
+if (diagnosticsEnabled) app.MapHub<DiagnosticsHub>("/hubs/diagnostics");
 
 app.Run();

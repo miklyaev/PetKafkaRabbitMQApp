@@ -32,9 +32,11 @@ using Microsoft.Extensions.Hosting;
 using Shop.Contracts;
 using Shop.Notifications.Consumers;
 using Shop.Notifications.Data;
+using Shop.Observability;
 
 // «Лёгкий» хост без веб-сервера (как и в Shop.Orders): DI + конфигурация + логи.
 var builder = Host.CreateApplicationBuilder(args);
+var diagnosticsEnabled = builder.Services.AddBrokerDiagnostics(builder.Configuration, builder.Environment, "Shop.Notifications");
 
 // ── Конфигурация брокеров ────────────────────────────────────────────────────
 // Секции MessageBus:RabbitMq и MessageBus:Kafka из appsettings.json →
@@ -63,6 +65,9 @@ builder.Services.AddDbContext<NotificationsDbContext>(o =>
 // потом куда пишем.
 builder.Services.AddMassTransit(x =>
 {
+    if (diagnosticsEnabled)
+        x.AddBrokerDiagnosticObservers();
+
     x.SetKebabCaseEndpointNameFormatter(); // имена очередей/эндпоинтов — kebab-case
 
     // ── Kafka: райдер-консьюмер ────────────────────────────────────────────────

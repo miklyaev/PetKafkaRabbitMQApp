@@ -10,10 +10,12 @@
 
   <ItemGroup>
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.11" />
+    <PackageReference Include="Confluent.Kafka" Version="2.15.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Shop.Contracts\Shop.Contracts.csproj" />
+    <ProjectReference Include="..\Shop.Observability\Shop.Observability.csproj" />
   </ItemGroup>
 
 </Project>

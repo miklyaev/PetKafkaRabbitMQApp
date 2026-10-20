@@ -6,6 +6,42 @@
 
 <!-- Новые записи добавлять сверху -->
 
+### 2026-10-20 — Read-only мониторинг RabbitMQ/Kafka и живой журнал обмена
+
+**Область:** Architecture | Backend | Frontend | Infra | Testing
+
+**Что изменилось:**
+- Новый проект `Shop.Observability`: MassTransit observers (`send/publish/consume/receive`, Kafka produce через `KafkaSendContext`), санитайзер (маскирование `CustomerName`/`Text`/`Reason`/`Message`/stack, allowlist headers, payload ≤8 KiB, адрес без credentials) и bounded sink (2048, неблокирующая запись, отбрасывание нового при переполнении). Worker-экспортёр шлёт батчи ≤100 событий / ≤256 KiB без retry и redirect. Ошибки диагностики изолированы от бизнес-обработки.
+- Наблюдение opt-in: только `Development` + `BrokerMonitoring:Enabled=true`. `appsettings.Development.json` всех трёх сервисов включает флаг (в Web ещё `AllowedOrigins` для Vite `localhost:5173`/`127.0.0.1:5173`); вне dev или при `false` observers не регистрируются, а диагностические endpoints отвечают 404.
+- `Shop.Orders` и `Shop.Notifications` отправляют события на `BrokerMonitoring:CollectorUrl` (по умолчанию `http://localhost:5080/internal/diagnostics/events`) с `X-Diagnostics-Key`; общий `BrokerMonitoring:IngestionKey` задаётся только серверной конфигурацией/окружением (`BrokerMonitoring__IngestionKey`) и не попадает в репозиторий. Без ключа Web сохраняет локальный журнал и снимки, а worker-delivery выключается с warning в логе.
+- `Shop.Web`: `DiagnosticJournal` (2000 событий / 30 минут, cursor, dedupe по `EventId`, gap и dropped), ingestion endpoint `/internal/diagnostics/events` (fixed-time проверка ключа, ≤1 MiB, ≤100 событий), `DiagnosticsHub` `/hubs/diagnostics` с `DiagnosticsChanged`, локальный sink Web. Страницы, API чтения и хаб защищены loopback + same-origin/`AllowedOrigins` guard; ingestion требует ключ и не принимает браузерный `Origin`. Добавлены read-only снимки:
+  - RabbitMQ — management GET queues/exchanges/bindings/consumers (vhost encoded), без peek/consume; `RabbitMqManagementUsername/Password` опциональны с fallback на AMQP-учётку; rate nullable → в UI «—»; при сбое показываются последние данные и `available=false`;
+  - Kafka — metadata, committed offsets и watermarks без входа в consumer group; lag = high − committed, отложенный commit не означает потерю, offset упорядочен только внутри partition;
+  - Kafka messages — ручной `Assign`, уникальный временный group id, без `Subscribe`/`Commit`/`StoreOffset`; лимиты 50 записей, 2 с, 256 KiB, value 8 KiB.
+- Frontend: маршруты `/brokers/rabbitmq`, `/brokers/kafka`, `/brokers/flow`, навигация в header, таблицы снимков и журнал с фильтрами, паузой, SignalR-обновлением и резервным polling раз в 5 с. Сырые Kafka-значения помечены как потенциально содержащие персональные данные; индикатор в шапке относится только к каналу уведомлений, не к здоровью брокеров.
+- Документация: README теперь содержит фактическую инструкцию запуска (Docker → `npm build` → ключ в трёх терминалах → три `dotnet run`, готовые страницы); `spec.md` обновлён (6 проектов, config/API/semantics мониторинга), устаревшее «1 партиция» исправлено на 3.
+
+**Проверки (фактические результаты):**
+- Release solution build — PASS, 0 warnings/0 errors; backend — 51/51, включая native Kafka config regression; React `tsc` + `vite build` — PASS; Vitest — 10 файлов, 40/40.
+- Runtime в изолированных vhost/topic и отдельной БД: create+complete прошли всю цепочку со всеми тремя сервисами; журнал маскирует raw customer, dropped = 0; Kafka raw read вернул 2 события, offsets до/после не изменились; HTTP с evil Origin — 404, Vite — 200, missing ingestion key — 401, invalid limit — 400.
+- Runtime в Production (порт 5092) при `Enabled=true`: `/api/diagnostics/config`, `/brokers/*` и `/hubs/diagnostics` — 404, `/api/catalog` — 200 (Development-guard работает).
+- Browser QA: прямые URL, навигация, фильтры, пауза, reconnect, JSON-детали и mobile-страницы брокеров проверены; ошибок консоли нет. Исправлено прежнее переполнение страницы заказов на mobile: явная `grid-cols-1`, корректная desktop-сетка. Проверка `dotnet format whitespace` новых C#-файлов пройдена.
+
+**Ограничения:**
+- Журнал volatile: рестарт Web теряет события, переполнение даёт gap/dropped; payload — callback-представление, а не полный wire envelope.
+- Мониторинг доступен только в Development + loopback; отдельной аутентификации нет, кроме общего ingestion key; в Production endpoints отвечают 404.
+- Raw Kafka view может содержать `CustomerName` и другие персональные данные; RabbitMQ не даёт безопасного peek, поэтому тела очередей не показываются.
+- Снимки могут быть устаревшими; lag не доказывает обработку или потерю; диагностика lossy и не меняет бизнес-гарантии (outbox-риск остаётся прежним).
+
+**Затронутые пути:**
+- `Shop.Observability/` (новый проект), `Shop.Orders/Program.cs`, `Shop.Notifications/Program.cs`, `Shop.Tests/`
+- `Shop.Web/Program.cs`, `Shop.Web/Controllers/DiagnosticsController.cs`, `Shop.Web/Diagnostics/`
+- `Shop.Web/appsettings.json`, `Shop.Web/appsettings.Development.json`, dev-settings воркеров
+- `Shop.Web/clientapp/src/App.tsx`, `src/components/Header.tsx`, `src/diagnostics/`, `src/index.css`
+- `README.md`, `spec.md`, `dev_notes.md`
+
+**Зачем / контекст:** Пет-проекту нужны наглядные read-only страницы RabbitMQ/Kafka и живой журнал пути сообщения, при этом диагностика не должна влиять на доставку и бизнес-гарантии. Проверки подтвердили маскирование, неизменность Kafka offsets при чтении и loopback/key-защиту.
+
 ### 2026-10-16 — Обновление дизайна UI (Swiss Style & Dark Mode Minimal)
 
 **Область:** Frontend | UI/UX

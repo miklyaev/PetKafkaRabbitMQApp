@@ -6,6 +6,7 @@
   <Project Path="Shop.Contracts/Shop.Contracts.csproj" />
   <Project Path="Shop.Notifications/Shop.Notifications.csproj" />
   <Project Path="Shop.Orders/Shop.Orders.csproj" />
+  <Project Path="Shop.Observability/Shop.Observability.csproj" />
   <Project Path="Shop.Tests/Shop.Tests.csproj" Id="8ae47792-02c9-4092-959c-56637ed53013" />
   <Project Path="Shop.Web/Shop.Web.csproj" />
 </Solution>
