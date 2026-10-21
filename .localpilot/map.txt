@@ -1,0 +1,283 @@
+## WORKSPACE EXECUTIVE SUMMARY (YAML)
+# Generated: 2026-10-21T09:05:22.2617190+07:00
+# Root: D:\NeuroNet\Learning\Examples\PetKafkaRabbitMQApp
+Architecture:
+  Type: Full-Stack (C#/.NET + Web)
+  Scale: 120 relevant source files
+  Components: 20
+  Controllers: 4
+  Models: 0
+  Services: 0
+---
+- File: Shop.Contracts\Shop.Contracts.csproj
+  Preview: "<Project Sdk='Microsoft.NET.Sdk'>  <PropertyGroup>   <TargetFramework>net10.0</TargetFramework>   <ImplicitUsings>enable</ImplicitUsings>   <Nullable>..."
+- File: Shop.Notifications\Shop.Notifications.csproj
+  Preview: "<Project Sdk='Microsoft.NET.Sdk.Worker'>  <PropertyGroup>   <TargetFramework>net10.0</TargetFramework>   <ImplicitUsings>enable</ImplicitUsings>   <Nu..."
+- File: Shop.Observability\Shop.Observability.csproj
+  Preview: "<Project Sdk='Microsoft.NET.Sdk'>  <PropertyGroup>   <TargetFramework>net10.0</TargetFramework>   <ImplicitUsings>enable</ImplicitUsings>   <Nullable>..."
+- File: Shop.Orders\Shop.Orders.csproj
+  Preview: "<Project Sdk='Microsoft.NET.Sdk.Worker'>  <PropertyGroup>   <TargetFramework>net10.0</TargetFramework>   <ImplicitUsings>enable</ImplicitUsings>   <Nu..."
+- File: Shop.Tests\Shop.Tests.csproj
+  Preview: "<Project Sdk='Microsoft.NET.Sdk'>  <PropertyGroup>   <TargetFramework>net10.0</TargetFramework>   <ImplicitUsings>enable</ImplicitUsings>   <Nullable>..."
+- File: Shop.Web\Shop.Web.csproj
+  Preview: "<Project Sdk='Microsoft.NET.Sdk.Web'>  <PropertyGroup>   <TargetFramework>net10.0</TargetFramework>   <ImplicitUsings>enable</ImplicitUsings>   <Nulla..."
+- File: dev_notes.md
+  Preview: "# Dev Notes Краткий журнал ключевых изменений проекта PetKafkaRabbitMQApp (пет-проект «MiniShop»). ## Журнал изменений <!-- Новые записи добавлять све..."
+- File: docker-compose.yml
+  Preview: "name: minishop services:  rabbitmq:   image: rabbitmq:3-management   container_name: minishop-rabbitmq   ports:    - '5672:5672'    - '15672:15672'   ..."
+- File: p1.md
+  Preview: "# контекст: Ты — ведущий Product/UI-дизайнер с безупречным вкусом, эксперт по современным цифровым трендам 2026 года (минимализм, кинетическая типогра..."
+- File: PetKafkaRabbitMQApp.slnx
+  Preview: "<Solution>  <Folder Name='/Solution Items/'>   <File Path='docker-compose.yml' />   <File Path='spec.md' />  </Folder>  <Project Path='Shop.Contracts/..."
+- File: push.ps1
+  Preview: "# Скрипт для автоматического коммита и пуша на GitHub (Windows / PowerShell) Write-Host 'Добавление файлов в индекс...' -ForegroundColor Cyan git add ..."
+- File: README.md
+  Preview: "# PetKafkaRabbitMQApp — MiniShop Пет-проект на **.NET 10**: заказы ходят через **RabbitMQ** (команды, request/response) и **Kafka** (событийный поток)..."
+- File: spec.md
+  Preview: "# Спецификация: MiniShop — пет-проект Kafka + RabbitMQ **Репозиторий:** `PetKafkaRabbitMQApp` · **Версия:** 1.1 · **Дата:** 2026-10-20 ## 1. Назначени..."
+- File: .claude\settings.local.json
+  Preview: "{  'permissions': {   'allow': [    'PowerShell(dotnet build *)',    'PowerShell(Get-Command *)',    'PowerShell(tesseract *)',    'PowerShell(npm run..."
+- File: .kodik\launch.json
+  Preview: "{  'version': '0.2.0',  'configurations': [   {    'type': 'node',    'request': 'launch',    'name': 'Debug Backend Server',    'skipFiles': ['<node_..."
+- File: Shop.Contracts\Catalog.cs
+  Preview: "namespace Shop.Contracts; /// <summary> /// Статический каталог товаров — единый источник цен для витрины (Shop.Web) /// и сервиса заказов (Shop.Order..."
+- File: Shop.Contracts\MessagingOptions.cs
+  Symbols: [RabbitMqO]
+  Preview: "namespace Shop.Contracts; /// <summary> /// Параметры подключения к RabbitMQ. Секция <c>MessageBus:RabbitMq</c> в appsettings.json; /// значения по ум..."
+- File: Shop.Contracts\Orders.cs
+  Preview: "namespace Shop.Contracts; /// <summary>Статус заказа. Серверная сторона передаёт enum, клиенту REST/SignalR отдаёт строкой.</summary> public enum Orde..."
+- File: Shop.Notifications\appsettings.Development.json
+  Preview: "{  'BrokerMonitoring': {   'Enabled': true  } } "
+- File: Shop.Notifications\appsettings.json
+  Preview: "{  'Logging': {   'LogLevel': {    'Default': 'Information',    'Microsoft.EntityFrameworkCore': 'Warning',    'Microsoft.Hosting.Lifetime': 'Informat..."
+- File: Shop.Notifications\Program.cs
+  Preview: "// ───────────────────────────────────────────────────────────────────────────── // Shop.Notifications — микросервис уведомлений «MiniShop». // // Wor..."
+- File: Shop.Observability\AssemblyInfo.cs
+  Preview: "using System.Runtime.CompilerServices; [assembly: InternalsVisibleTo('Shop.Tests')] "
+- File: Shop.Observability\BrokerDiagnosticObserver.cs
+  Preview: "using System.Collections.Concurrent; using System.Diagnostics; using System.Runtime.CompilerServices; using MassTransit; namespace Shop.Observability;..."
+- File: Shop.Observability\BrokerDiagnosticsExtensions.cs
+  Preview: "using MassTransit; using Microsoft.Extensions.Configuration; using Microsoft.Extensions.DependencyInjection; using Microsoft.Extensions.Hosting; names..."
+- File: Shop.Observability\DiagnosticEvent.cs
+  Preview: "namespace Shop.Observability; /// <summary>A bounded, sanitized observation, not a business message or a delivery guarantee.</summary> public sealed r..."
+- File: Shop.Observability\DiagnosticExporter.cs
+  Preview: "using System.Net.Http.Headers; using System.Text.Json; using Microsoft.Extensions.Configuration; using Microsoft.Extensions.Hosting; using Microsoft.E..."
+- File: Shop.Observability\DiagnosticSanitizer.cs
+  Symbols: [DiagnosticSanitizer]
+  Preview: "using System.Text.Json; using System.Text.Json.Nodes; using System.Text.Json.Serialization; using MassTransit; namespace Shop.Observability; internal ..."
+- File: Shop.Observability\DiagnosticSink.cs
+  Symbols: [BoundedDiagnosticSink]
+  Preview: "using System.Threading.Channels; namespace Shop.Observability; /// <summary>Bounded in-memory queue. Overflow or oversized input rejects the newest ev..."
+- File: Shop.Orders\appsettings.Development.json
+  Preview: "{  'BrokerMonitoring': {   'Enabled': true  } } "
+- File: Shop.Orders\appsettings.json
+  Preview: "{  'Logging': {   'LogLevel': {    'Default': 'Information',    'Microsoft.EntityFrameworkCore': 'Warning',    'Microsoft.Hosting.Lifetime': 'Informat..."
+- File: Shop.Orders\Program.cs
+  Preview: "// ───────────────────────────────────────────────────────────────────────────── // Shop.Orders — микросервис заказов «MiniShop». // // Это Worker-сер..."
+- File: Shop.Tests\CatalogControllerTest.cs
+  Symbols: [Get_ReturnsOk_WithCatalogItems, CatalogControllerTests]
+  Preview: "using Microsoft.AspNetCore.Mvc; using Shop.Web.Controllers; using Xunit; namespace Shop.Tests {   public class CatalogControllerTests   {     [Fact]  ..."
+- File: Shop.Tests\DiagnosticsKafkaConfigurationTests.cs
+  Symbols: [DiagnosticsKafkaConfigurationTests]
+  Preview: "using Confluent.Kafka; using Shop.Contracts; using Shop.Web.Diagnostics; namespace Shop.Tests; public sealed class DiagnosticsKafkaConfigurationTests ..."
+- File: Shop.Tests\DiagnosticsMonitoringTests.cs
+  Preview: "using System.Net; using System.Text; using Microsoft.AspNetCore.Http; using Microsoft.AspNetCore.Mvc; using Microsoft.Extensions.DependencyInjection; ..."
+- File: Shop.Tests\ObservabilityTests.cs
+  Preview: "using System.Text.Json.Nodes; using Microsoft.Extensions.Configuration; using Microsoft.Extensions.DependencyInjection; using Microsoft.Extensions.Fil..."
+- File: Shop.Tests\OrdersControllerTests.cs
+  Symbols: [OrdersControllerTests]
+  Preview: "using MassTransit; using Microsoft.AspNetCore.Http; using Microsoft.AspNetCore.Mvc; using Moq; using Shop.Contracts; using Shop.Web.Controllers; names..."
+- File: Shop.Web\appsettings.Development.json
+  Preview: "{  'BrokerMonitoring': {   'Enabled': true,   'AllowedOrigins': ['http://localhost:5173', 'http://127.0.0.1:5173']  } } "
+- File: Shop.Web\appsettings.json
+  Preview: "{  'Logging': {   'LogLevel': {    'Default': 'Information',    'Microsoft.AspNetCore': 'Warning'   }  },  'AllowedHosts': '*',  'BrokerMonitoring': {..."
+- File: Shop.Web\libman.json
+  Preview: "{  'version': '3.0',  'defaultProvider': 'cdnjs',  'libraries': [] }"
+- File: Shop.Web\package-lock.json
+  Preview: "{  'name': 'Shop.Web',  'lockfileVersion': 3,  'requires': true,  'packages': {} } "
+- File: Shop.Web\Program.cs
+  Preview: "// ───────────────────────────────────────────────────────────────────────────── // Shop.Web — витрина «MiniShop». // // Роль в архитектуре (см. spec...."
+- File: .claude\commands\review.md
+  Preview: "--- description: Review current branch diff before merging --- ## Changes to Review !`git diff --name-only main...HEAD` ## Detailed Diff !`git diff ma..."
+- File: .claude\commands\test-backend.md
+  Preview: "--- description: Тестирование бэкенда --- Протестируй backend. Если есть ошибки - исправь их, и объясни почему они возникли. Проверь endpoint GET /api..."
+- File: .claude\commands\test-frontend.md
+  Preview: "--- description: Тестирование фронтенда --- Протестируй frontend. Если есть ошибки - исправь их, и объясни почему они возникли. Проверь компоненты на ..."
+- File: .claude\memories\project-overview.md
+  Preview: "# Обзор проекта Проект представляет собой систему управления задачами и проектами, похожую на Jira. Он включает в себя как серверную часть (ASP.NET Co..."
+- File: .claude\rules\aspnet-core.md
+  Preview: "  # .NET Development Rules  You are a senior .NET backend developer and an expert in C#, ASP.NET Core, and Entity Framework Core.  ## Code Style and S..."
+- File: .claude\rules\dev-notes.md
+  Preview: "--- description: Ведение dev_notes.md с ключевыми изменениями проекта после значимых правок alwaysApply: true --- # Dev Notes После завершения значимы..."
+- File: .claude\rules\simple-senior-frontend.md
+  Preview: "# Senior front-end expert You are a Senior Front-End Developer and an Expert in ReactJS, VueJS, NextJS, JavaScript, TypeScript, HTML, CSS and modern U..."
+- File: .kodik\agents\code-reviewer.md
+  Preview: "--- name: code-reviewer description: One-line description of when the main assistant should delegate to this agent. model: inherit color: blue --- Ты ..."
+- File: .kodik\commands\test-backend.md
+  Preview: "Протестируй backend. Если есть ошибки - исправь их, и объясни почему они возникли. Проверь endpoint GET /api/catalog: он должен возвращать каталог тов..."
+- File: .kodik\commands\test-e2e.md
+  Preview: "Запусти end to end тесты. Если есть ошибки - исправь их, и объясни почему они возникли. Выбери сам необходимые инструменты, например Playwright или Cy..."
+- File: .kodik\commands\test-frontend.md
+  Preview: "Протестируй frontend. Если есть ошибки - исправь их, и объясни почему они возникли. Проверь компоненты на наличие ошибок, таких как некорректные пропс..."
+- File: .kodik\hooks\hooks.json
+  Preview: "{  'hooks': {   'Stop': [    {     'hooks': [      {       'type': 'command',       'command': 'powershell -NoProfile -ExecutionPolicy Bypass -File \'..."
+- File: .kodik\hooks\stop-git-commit.ps1
+  Preview: "$ErrorActionPreference = 'Stop' $root = git rev-parse --show-toplevel 2>$null if (-not $root) {   exit 0 } Set-Location $root $status = git status --p..."
+- File: .kodik\rules\aspnet-core.md
+  Preview: "  # .NET Development Rules  You are a senior .NET backend developer and an expert in C#, ASP.NET Core, and Entity Framework Core.  ## Code Style and S..."
+- File: .kodik\rules\senior-frontend.md
+  Preview: "--- description: JavaScript\TypeSAcript frontend разработка alwaysApply: true --- # Senior front-end expert You are a Senior Front-End Developer and a..."
+- File: .kodik\rules\simple-senior-frontend.md
+  Preview: "# Senior front-end expert You are a Senior Front-End Developer and an Expert in ReactJS, VueJS, NextJS, JavaScript, TypeScript, HTML, CSS and modern U..."
+- File: Shop.Notifications\Consumers\OrderEventConsumer.cs
+  Preview: "using MassTransit; using Shop.Contracts; using Shop.Notifications.Data; namespace Shop.Notifications.Consumers; /// <summary> /// Читает события заказ..."
+- File: Shop.Notifications\Data\NotificationRecord.cs
+  Symbols: [NotificationRecord]
+  Preview: "using Shop.Contracts; namespace Shop.Notifications.Data; /// <summary>Сохранённое уведомление (журнал уведомлений сервиса).</summary> public sealed cl..."
+- File: Shop.Notifications\Data\NotificationsDbContext.cs
+  Symbols: [DbContext, NotificationsDbContext]
+  Preview: "using Microsoft.EntityFrameworkCore; namespace Shop.Notifications.Data; public sealed class NotificationsDbContext(DbContextOptions<NotificationsDbCon..."
+- File: Shop.Notifications\Properties\launchSettings.json
+  Preview: "{  'profiles': {   'Shop.Notifications': {    'commandName': 'Project',    'environmentVariables': {     'DOTNET_ENVIRONMENT': 'Development'    }   } ..."
+- File: Shop.Orders\Consumers\ChangeOrderStatusConsumer.cs
+  Symbols: [C]
+  Preview: "using MassTransit; using Microsoft.EntityFrameworkCore; using Shop.Contracts; using Shop.Orders.Data; namespace Shop.Orders.Consumers; /// <summary>За..."
+- File: Shop.Orders\Consumers\CreateOrderConsumer.cs
+  Preview: "using MassTransit; using Microsoft.EntityFrameworkCore; using Microsoft.Extensions.Hosting; using Shop.Contracts; using Shop.Orders.Data; namespace Sh..."
+- File: Shop.Orders\Consumers\GetOrdersConsumer.cs
+  Symbols: [GetOrdersCo]
+  Preview: "using MassTransit; using Microsoft.EntityFrameworkCore; using Shop.Contracts; using Shop.Orders.Data; namespace Shop.Orders.Consumers; /// <summary>От..."
+- File: Shop.Orders\Data\Order.cs
+  Symbols: [Order]
+  Preview: "using Shop.Contracts; namespace Shop.Orders.Data; /// <summary>Сущность заказа — только сервис заказов работает с ней напрямую.</summary> public seale..."
+- File: Shop.Orders\Data\OrdersDbContext.cs
+  Symbols: [OrdersDbContext, DbContext]
+  Preview: "using Microsoft.EntityFrameworkCore; namespace Shop.Orders.Data; public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) : DbCo..."
+- File: Shop.Orders\Properties\launchSettings.json
+  Preview: "{  'profiles': {   'Shop.Orders': {    'commandName': 'Project',    'environmentVariables': {     'DOTNET_ENVIRONMENT': 'Development'    }   }  } } "
+- File: Shop.Web\clientapp\package-lock.json
+  Preview: "{  'name': 'minishop-client',  'version': '1.0.0',  'lockfileVersion': 3,  'requires': true,  'packages': {   '': {    'name': 'minishop-client',    '..."
+- File: Shop.Web\clientapp\package.json
+  Preview: "{  'name': 'minishop-client',  'private': true,  'version': '1.0.0',  'type': 'module',  'scripts': {   'dev': 'vite',   'build': 'tsc --noEmit && vit..."
+- File: Shop.Web\clientapp\tsconfig.json
+  Preview: "{  'compilerOptions': {   'target': 'ES2022',   'lib': ['ES2022', 'DOM', 'DOM.Iterable'],   'module': 'ESNext',   'moduleResolution': 'bundler',   'js..."
+- File: Shop.Web\clientapp\vite.config.ts
+  Preview: "/// <reference types='vitest' /> import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; import tailwindcss from '@tailwindcss/..."
+- File: Shop.Web\Consumers\NotificationSentConsumer.cs
+  Preview: "using MassTransit; using Microsoft.AspNetCore.SignalR; using Shop.Contracts; using Shop.Web.Hubs; namespace Shop.Web.Consumers; /// <summary>Получает ..."
+- File: Shop.Web\Controllers\CatalogController.cs
+  Symbols: [CatalogController]
+  Preview: "using Microsoft.AspNetCore.Mvc; using Shop.Contracts; namespace Shop.Web.Controllers; /// <summary>Каталог товаров для витрины.</summary> [ApiControll..."
+- File: Shop.Web\Controllers\DiagnosticsController.cs
+  Symbols: [Di]
+  Preview: "using System.Security.Cryptography; using System.Text; using Microsoft.AspNetCore.Mvc; using Shop.Observability; using Shop.Web.Diagnostics; namespace..."
+- File: Shop.Web\Controllers\HomeController.cs
+  Symbols: [HomeController]
+  Preview: "using Microsoft.AspNetCore.Mvc; namespace Shop.Web.Controllers; /// <summary>Классический MVC-контроллер: хостит React-SPA и страницу ошибок.</summary..."
+- File: Shop.Web\Controllers\OrdersController.cs
+  Preview: "using MassTransit; using Microsoft.AspNetCore.Mvc; using Shop.Contracts; namespace Shop.Web.Controllers; /// <summary>Позиция в теле запроса создания ..."
+- File: Shop.Web\Diagnostics\AssemblyInfo.cs
+  Preview: "using System.Runtime.CompilerServices; [assembly: InternalsVisibleTo('Shop.Tests')] "
+- File: Shop.Web\Diagnostics\DiagnosticJournal.cs
+  Preview: "using Shop.Observability; namespace Shop.Web.Diagnostics; public sealed record JournalEntry(long Sequence, DiagnosticEvent Event); public sealed recor..."
+- File: Shop.Web\Diagnostics\KafkaMonitoring.cs
+  Symbols: [KafkaMonitoring]
+  Preview: "using System.Diagnostics; using System.Text; using Confluent.Kafka; using Shop.Contracts; namespace Shop.Web.Diagnostics; public sealed class KafkaMon..."
+- File: Shop.Web\Diagnostics\MonitoringModels.cs
+  Preview: "namespace Shop.Web.Diagnostics; public sealed record RabbitQueue(string Name, long Messages, long MessagesReady, long MessagesUnacknowledged, int Cons..."
+- File: Shop.Web\Diagnostics\MonitoringRegistration.cs
+  Symbols: [DiagnosticsHub]
+  Preview: "using System.Net; using Microsoft.AspNetCore.SignalR; using Microsoft.Extensions.DependencyInjection.Extensions; using Shop.Contracts; using Shop.Obse..."
+- File: Shop.Web\Diagnostics\RabbitMonitoring.cs
+  Symbols: [RabbitMonitoring]
+  Preview: "using System.Net.Http.Headers; using System.Text; using System.Text.Json; using Shop.Contracts; namespace Shop.Web.Diagnostics; public sealed class Ra..."
+- File: Shop.Web\Hubs\NotificationHub.cs
+  Symbols: [NotificationHub]
+  Preview: "using Microsoft.AspNetCore.SignalR; namespace Shop.Web.Hubs; /// <summary>Хаб уведомлений: сервер вызывает у клиентов метод «NotificationReceived».</s..."
+- File: Shop.Web\Properties\launchSettings.json
+  Preview: "{  'profiles': {   'Shop.Web': {    'commandName': 'Project',    'launchBrowser': true,    'applicationUrl': 'http://localhost:5080;https://localhost:..."
+- File: .claude\skills\dev-notes\SKILL.md
+  Preview: "--- name: dev-notes description: >-  Ведёт dev_notes.md с ключевыми изменениями проекта: архитектура, Backend,  компоненты фронтенда. Создаёт файл при..."
+- File: .claude\skills\security-review\SKILL.md
+  Preview: "--- name: security-review description: Comprehensive security audit. Use when reviewing code for  vulnerabilities, before deployments, or when the use..."
+- File: .kodik\skills\dev-notes\SKILL.md
+  Preview: "--- name: dev-notes description: >-  Ведёт dev_notes.md с ключевыми изменениями проекта: архитектура, Backend,  компоненты фронтенда. Создаёт файл при..."
+- File: .kodik\skills\git-workflow\SKILL.md
+  Preview: "--- name: git-workflow description: Работа с git: коммиты, пуши, ветки, отмена изменений. Использовать при упоминании git, коммитов, пушей или синхрон..."
+- File: .kodik\skills\security-review\SKILL.md
+  Preview: "--- name: security-review description: Comprehensive security audit. Use when reviewing code for  vulnerabilities, before deployments, or when the use..."
+- File: Shop.Web\clientapp\src\api.ts
+  Symbols: [ApiErrorBody]
+  Preview: "import type { CreateOrderResult, OrderSummary, Product } from './types'; interface ApiErrorBody {  detail?: string;  title?: string; } async function ..."
+- File: Shop.Web\clientapp\src\App.test.tsx
+  Preview: "import { act, render, screen } from '@testing-library/react'; import { useNotificationHub } from './signalr'; import userEvent from '@testing-library/..."
+- File: Shop.Web\clientapp\src\App.tsx
+  Preview: "import { useCallback, useEffect, useRef, useState } from 'react'; import {  BrowserRouter,  Link,  Route,  Routes,  useLocation, } from 'react-router-..."
+- File: Shop.Web\clientapp\src\format.test.ts
+  Preview: "import { describe, expect, it } from 'vitest'; import { formatRub } from './format'; // formatRub — обёртка над Intl.NumberFormat('ru-RU'): деньги, бе..."
+- File: Shop.Web\clientapp\src\format.ts
+  Preview: "const rub = new Intl.NumberFormat('ru-RU', {  style: 'currency',  currency: 'RUB',  maximumFractionDigits: 0, }); /** Форматирует сумму в рублях: 6 99..."
+- File: Shop.Web\clientapp\src\main.tsx
+  Preview: "import { StrictMode } from 'react'; import { createRoot } from 'react-dom/client'; import './index.css'; import App from './App'; createRoot(document...."
+- File: Shop.Web\clientapp\src\signalr.ts
+  Preview: "import { useEffect, useRef, useState } from 'react'; import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr'; import type {..."
+- File: Shop.Web\clientapp\src\types.ts
+  Symbols: [Product, OrderSummary, OrderStatus]
+  Preview: "export type OrderStatus = 'Accepted' | 'Completed' | 'Cancelled'; export interface Product {  name: string;  price: number;  icon: string; } export in..."
+- File: Shop.Web\clientapp\src\components\Header.test.tsx
+  Preview: "import { render, screen } from '@testing-library/react'; import { describe, expect, it } from 'vitest'; import { Header } from './Header'; import { Me..."
+- File: Shop.Web\clientapp\src\components\Header.tsx
+  Symbols: [Header]
+  Preview: "import { NavLink } from 'react-router-dom'; export function Header({ connected }: { connected: boolean }) {  return (   <header className='sticky top-..."
+- File: Shop.Web\clientapp\src\components\OrderForm.test.tsx
+  Preview: "import { fireEvent, render, screen, waitFor } from '@testing-library/react'; import userEvent from '@testing-library/user-event'; import { describe, e..."
+- File: Shop.Web\clientapp\src\components\OrderForm.tsx
+  Symbols: [Props, FormEvent]
+  Preview: "import { useMemo, useState, type FormEvent } from 'react'; import { formatRub } from '../format'; import type { Product } from '../types'; import { Sp..."
+- File: Shop.Web\clientapp\src\components\OrderList.test.tsx
+  Preview: "import { render, screen } from '@testing-library/react'; import userEvent from '@testing-library/user-event'; import { describe, expect, it, vi } from..."
+- File: Shop.Web\clientapp\src\components\OrderList.tsx
+  Symbols: [Props]
+  Preview: "import { formatRub } from '../format'; import type { OrderSummary } from '../types'; import { StatusBadge } from './StatusBadge'; interface Props {  o..."
+- File: Shop.Web\clientapp\src\components\Spinner.test.tsx
+  Preview: "import { render } from '@testing-library/react'; import { describe, expect, it } from 'vitest'; import { Spinner } from './Spinner'; // Spinner не име..."
+- File: Shop.Web\clientapp\src\components\Spinner.tsx
+  Symbols: [Spinner]
+  Preview: "export function Spinner() {  return (   <span    className='inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white'   ..."
+- File: Shop.Web\clientapp\src\components\StatusBadge.test.tsx
+  Preview: "import { render, screen } from '@testing-library/react'; import { describe, expect, it } from 'vitest'; import type { OrderStatus } from '../types'; i..."
+- File: Shop.Web\clientapp\src\components\StatusBadge.tsx
+  Preview: "import type { OrderStatus } from '../types'; const BADGES: Record<OrderStatus, { label: string; className: string }> = {  Accepted: { label: 'Принят',..."
+- File: Shop.Web\clientapp\src\components\Toasts.test.tsx
+  Symbols: [Toast]
+  Preview: "import { render, screen } from '@testing-library/react'; import userEvent from '@testing-library/user-event'; import { describe, expect, it, vi } from..."
+- File: Shop.Web\clientapp\src\components\Toasts.tsx
+  Symbols: [Toast]
+  Preview: "export interface Toast {  id: number;  kind: 'info' | 'success' | 'danger';  title: string;  text: string; } const BORDER: Record<Toast['kind'], strin..."
+- File: Shop.Web\clientapp\src\diagnostics\api.ts
+  Symbols: [MonitoringConfig, Snapshot, Broker]
+  Preview: "export type Broker = 'rabbitmq' | 'kafka'; export interface MonitoringConfig {  enabled: boolean;  rabbitMqManagementUrl: string | null;  kafkaUiUrl: ..."
+- File: Shop.Web\clientapp\src\diagnostics\BrokerSnapshot.tsx
+  Symbols: [ReactNode, KafkaMessages, KafkaSnapshot, RabbitSnapshot, Snapshot, Broker]
+  Preview: "import { useCallback, useEffect, useState, type ReactNode } from 'react'; import {  diagnosticsGet,  type Broker,  type KafkaMessages,  type KafkaSnap..."
+- File: Shop.Web\clientapp\src\diagnostics\DiagnosticsPage.test.tsx
+  Preview: "import { fireEvent, render, screen, waitFor } from '@testing-library/react'; import userEvent from '@testing-library/user-event'; import { afterEach, ..."
+- File: Shop.Web\clientapp\src\diagnostics\DiagnosticsPage.tsx
+  Symbols: [MonitoringConfig, Broker]
+  Preview: "import { useEffect, useState } from 'react'; import { BrokerSnapshot } from './BrokerSnapshot'; import { Journal } from './Journal'; import {  diagnos..."
+- File: Shop.Web\clientapp\src\diagnostics\formatDateTime.test.ts
+  Preview: "import { describe, expect, it } from 'vitest'; import { formatDiagnosticDateTime } from './formatDateTime'; describe('formatDiagnosticDateTime', () =>..."
+- File: Shop.Web\clientapp\src\diagnostics\formatDateTime.ts
+  Preview: "const diagnosticDateTimeFormat = new Intl.DateTimeFormat('ru-RU', {  timeZone: 'Asia/Krasnoyarsk',  day: '2-digit',  month: '2-digit',  year: 'numeric..."
+- File: Shop.Web\clientapp\src\diagnostics\Journal.test.tsx
+  Preview: "import { render, screen } from '@testing-library/react'; import { beforeEach, describe, expect, it, vi } from 'vitest'; import { Journal } from './Jou..."
+- File: Shop.Web\clientapp\src\diagnostics\Journal.tsx
+  Symbols: [JsonDetail]
+  Preview: "import { useState } from 'react'; import type { Broker, DiagnosticEvent } from './api'; import { formatDiagnosticDateTime } from './formatDateTime'; i..."
+- File: Shop.Web\clientapp\src\diagnostics\useJournal.test.ts
+  Preview: "import { act, renderHook } from '@testing-library/react'; import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'; import { mergeEven..."
+- File: Shop.Web\clientapp\src\diagnostics\useJournal.ts
+  Symbols: [JournalPage, JournalEntry, Broker]
+  Preview: "import { useEffect, useRef, useState } from 'react'; import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr'; import {  diagnosticsGet,  t..."
+- File: Shop.Web\clientapp\src\test\setup.ts
+  Preview: "// Настройка окружения тестов (подключается через test.setupFiles в vite.config.ts). import '@testing-library/jest-dom/vitest'; import { cleanup } fro..."

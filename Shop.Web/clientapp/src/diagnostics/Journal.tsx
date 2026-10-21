@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Broker, DiagnosticEvent } from "./api";
+import { formatDiagnosticDateTime } from "./formatDateTime";
 import { useJournal } from "./useJournal";
 
 export function JsonDetail({ value }: { value: unknown }) {
@@ -152,7 +153,7 @@ export function Journal({
                 <td>
                   {sequence}
                   <br />
-                  {event.observedAt}
+                  {formatDiagnosticDateTime(event.observedAt)}
                 </td>
                 <td>
                   {event.broker}
